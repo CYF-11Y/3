@@ -1,5 +1,9 @@
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib
+matplotlib.rcParams['font.sans-serif'] = ['SimHei', 'Microsoft YaHei', 'Arial Unicode MS']
+matplotlib.rcParams['axes.unicode_minus'] = False
 
 df = pd.read_csv('游泳学员缴费数据.csv', encoding='utf-8')
 
@@ -155,7 +159,87 @@ city_stats = city_stats[['排名', '城市', '学员数(人)', '总缴费额(元
 print(city_stats.to_string(index=False))
 
 print("\n" + "=" * 80)
-print("三、可视化说明")
+print("三、可视化")
+print("=" * 80)
+
+monthly_total = df.groupby('缴费月份')['缴费金额_修正后'].sum().reset_index()
+monthly_total.columns = ['月份', '缴费总额']
+monthly_total = monthly_total.sort_values('月份')
+
+fig, axes = plt.subplots(1, 2, figsize=(16, 6))
+
+ax1 = axes[0]
+ax1.plot(monthly_total['月份'], monthly_total['缴费总额'], marker='o', linewidth=2, markersize=8, color='#2E86AB')
+ax1.fill_between(monthly_total['月份'], monthly_total['缴费总额'], alpha=0.3, color='#2E86AB')
+ax1.set_title('月度缴费总额趋势', fontsize=14, fontweight='bold')
+ax1.set_xlabel('月份', fontsize=12)
+ax1.set_ylabel('缴费总额(元)', fontsize=12)
+ax1.tick_params(axis='x', rotation=45)
+for i, (x, y) in enumerate(zip(monthly_total['月份'], monthly_total['缴费总额'])):
+    ax1.annotate(f'{y:,.0f}', (x, y), textcoords="offset points", xytext=(0, 10), ha='center', fontsize=9)
+ax1.grid(True, linestyle='--', alpha=0.7)
+
+ax2 = axes[1]
+
+city_total = df.groupby('学员省份')['缴费金额_修正后'].sum().reset_index()
+city_total.columns = ['城市', '缴费总额']
+city_total = city_total.sort_values('缴费总额', ascending=False)
+
+category_total = df.groupby('课程类目')['缴费金额_修正后'].sum().reset_index()
+category_total.columns = ['课程类别', '缴费总额']
+category_total = category_total.sort_values('缴费总额', ascending=False)
+
+status_total = df.groupby('缴费状态')['缴费金额_修正后'].sum().reset_index()
+status_total.columns = ['课程状态', '缴费总额']
+status_total = status_total.sort_values('缴费总额', ascending=False)
+
+funnel_labels = []
+funnel_values = []
+funnel_colors = []
+
+colors_city = plt.cm.Blues(np.linspace(0.8, 0.4, len(city_total)))
+for i, row in city_total.iterrows():
+    funnel_labels.append(f"城市:{row['城市']}")
+    funnel_values.append(row['缴费总额'])
+    funnel_colors.append(colors_city[list(city_total.index).index(i)])
+
+colors_category = plt.cm.Greens(np.linspace(0.8, 0.4, len(category_total)))
+for i, row in category_total.iterrows():
+    funnel_labels.append(f"课程:{row['课程类别']}")
+    funnel_values.append(row['缴费总额'])
+    funnel_colors.append(colors_category[list(category_total.index).index(i)])
+
+colors_status = plt.cm.Oranges(np.linspace(0.8, 0.4, len(status_total)))
+for i, row in status_total.iterrows():
+    funnel_labels.append(f"状态:{row['课程状态']}")
+    funnel_values.append(row['缴费总额'])
+    funnel_colors.append(colors_status[list(status_total.index).index(i)])
+
+y_pos = np.arange(len(funnel_labels))
+bars = ax2.barh(y_pos, funnel_values, color=funnel_colors, edgecolor='white', height=0.7)
+ax2.set_yticks(y_pos)
+ax2.set_yticklabels(funnel_labels, fontsize=8)
+ax2.set_xlabel('缴费总额(元)', fontsize=12)
+ax2.set_title('缴费分布漏斗图\n(城市→课程类别→课程状态)', fontsize=14, fontweight='bold')
+ax2.invert_yaxis()
+
+for i, (bar, value) in enumerate(zip(bars, funnel_values)):
+    ax2.text(value + 500, bar.get_y() + bar.get_height()/2, f'{value:,.0f}元', va='center', fontsize=8)
+
+ax2.axhline(y=len(city_total)-0.5, color='gray', linestyle='--', linewidth=1, alpha=0.5)
+ax2.axhline(y=len(city_total)+len(category_total)-0.5, color='gray', linestyle='--', linewidth=1, alpha=0.5)
+
+ax2.text(max(funnel_values)*0.95, len(city_total)/2, '城市层级', fontsize=10, fontweight='bold', ha='right', va='center', color='#1f77b4')
+ax2.text(max(funnel_values)*0.95, len(city_total)+len(category_total)/2, '课程类别层级', fontsize=10, fontweight='bold', ha='right', va='center', color='#2ca02c')
+ax2.text(max(funnel_values)*0.95, len(city_total)+len(category_total)+len(status_total)/2, '课程状态层级', fontsize=10, fontweight='bold', ha='right', va='center', color='#ff7f0e')
+
+plt.tight_layout()
+plt.savefig('游泳馆缴费数据分析可视化.png', dpi=150, bbox_inches='tight', facecolor='white')
+print("\n可视化图表已保存至: 游泳馆缴费数据分析可视化.png")
+plt.close()
+
+print("\n" + "=" * 80)
+print("四、可视化说明")
 print("=" * 80)
 
 print("""
@@ -215,3 +299,4 @@ print("  1. 数据修正记录表.csv")
 print("  2. 修正后学员缴费数据.csv")
 print("  3. 月度课程类别汇总表.csv")
 print("  4. 月度城市汇总表.csv")
+print("  5. 游泳馆缴费数据分析可视化.png")
